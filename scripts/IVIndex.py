@@ -42,6 +42,14 @@ class IVIndex:
         return self.inverted_index[term_id]
 
     def retrieve_notion_page(self, page_id):
+        """
+        Makes an https request to notion api and retrieves all "blocks" in a page 
+
+        Parameters:
+            - page_id: a string representing the notion id of a notion page 
+        Returns:
+            - blocks: a list of json "blocks" that captures all text information in the page 
+        """
         url = f'https://api.notion.com/v1/blocks/{page_id}/children'
         headers = {
             'Authorization': f'Bearer {self.notion_secret}',
@@ -53,20 +61,37 @@ class IVIndex:
         response = requests.get(url, headers=headers, json=payload)
 
         if response.status_code == 200:
-            data = response.json()["results"]
-            return data
+            blocks = response.json()["results"]
+            return blocks
         else:
             print(f"Error: {response.status_code}")
             print(response.text)
             return None
 
     def tokenize_word(self, word):
-        # Removes spaces, makes lower case, removes punctuation
-        # Added "“”" because for some reason that doesnt count as puncutation
-        return word.strip().lower().translate(str.maketrans('', '', string.punctuation + '“”'))
+        """
+        Tokenizes a word by removing spaces, making lower case, and removing punctuation 
+
+        Parameters:
+            - word: a string to be tokenized 
+        Returns:
+            - token: the tokenized word 
+        """
+        token = word.strip().lower().translate(str.maketrans('', '', string.punctuation + '“”'))
+        return token 
 
     # rich parameter indicates whether to capture annotation and notion block type data
     def retrieve_page_terms(self, blocks, rich=False, terms=[]):
+        """
+        Recursively retrieves all terms in a list of notion blocks, including nested blocks 
+
+        Parameters:
+            - blocks: a list of ntion blocks representing a page, fetched from self.retrieve_notion_page
+            - rich: a boolean indicating whether to capture rich text information (annotations and block type)
+            - terms: a list of terms to be returned
+        Returns:
+            - terms: a list of terms in a given notion page 
+        """
         for block in blocks:
             block_type = block["type"]
             block_content = block[block_type]
@@ -74,7 +99,6 @@ class IVIndex:
             if "rich_text" in block_content:
                 text_content = block_content["rich_text"]
                 for text in text_content:
-                    # tokenized_words is the list of terms in the block
                     raw_words = re.findall(r'\b\w+\b', text["plain_text"])
 
                     if rich:
@@ -126,6 +150,12 @@ class IVIndex:
         return IDF_component * (term_frequency_component / normalization_component)
     
     def construct_page_id_lexicon(self):
+        """
+        Constructs the page_id lexicon that maps a notion page id to an integer id 
+
+        Returns:
+            - lexicon: dict[notion_page_id] = integer id 
+        """
         i = 0
         lexicon = {}
         for page_id in self.page_ids:
@@ -135,6 +165,12 @@ class IVIndex:
         return lexicon
 
     def construct_term_id_lexicon(terms):
+        """
+        Constructs the term_id lexicon that maps a notion term to an integer id 
+
+        Returns:
+            - lexicon: dict[term] = integer id 
+        """
         i = 0
         lexicon = {}
         for term in terms:
@@ -144,60 +180,19 @@ class IVIndex:
         return lexicon
     
     def term_frequencies(self, terms):
+        """
+        Returns the frequency of each term in list of terms
+
+        Parameters:
+            - terms: a list of terms 
+        Returns:
+            - freqs: dict[term] = frequency of term
+
+        """
         freqs = defaultdict(int)
         for term in terms:
             freqs[term] += 1
         return freqs
-    
-    # Parameters:
-    # #    - notion_pages: a dict[page_id] = { page blocks[str] }
-    # # Returns:
-    # #    - tuples: a list of tuples represting the inverted index ([term_id, page_id, term_frequency])
-    # #    - term_id_lexicon: the term id lexicon that maps terms to integers
-    # #    - page_id_lexicon: the page id lexicon that maps page_ids to integers
-    # def construct_inverse_index_tuples(self, notion_pages: dict):
-    #     page_id_lexicon = construct_page_id_lexicon()
-    #     global_terms = []
-    #     tuples = []
-    #     for page_id, page_blocks in notion_pages.items():
-    #         page_terms = self.retrieve_page_terms(page_blocks)
-    #         for term in page_terms:
-    #             tuples.append([term, page_id_lexicon[page_id], term_freqs[term]])
-    #         global_terms += page_terms
-    #     term_id_lexicon = construct_term_id_lexicon(global_terms)
-    #     for tuple in tuples:
-    #         tuple[0] = term_id_lexicon[tuple[0]]
-    #     tuples.sort(key=lambda x: x[0])
-    #     return tuples, term_id_lexicon, page_id_lexicon
-
-
-    # def get_inverted_index(self, tuples):
-    #     """
-    #     Parameters:
-    #         - tuples: a list of tuples represting the inverted index ([term_id, page_id, term_frequency])
-    #     Returns:
-    #         - inverted_index: a 2 layer deep dict represting the inverted index [term_id][page_id][term_frequency]
-    #     """
-    #     inverted_index = {}
-
-    #     for tuple in tuples:
-    #         term_id, page_id, term_frequencies = tuple
-
-    #         term_pages = inverted_index.get(term_id, {})
-
-    #         if page_id in term_pages.keys():
-    #             if term_pages[page_id] != term_frequencies:
-    #                 print('inverted index was contructed incorrectly')
-    #                 sys.exit(1)
-
-    #         term_pages[page_id] = term_frequencies
-
-    #         inverted_index[term_id] = term_pages
-    
-    #     return inverted_index
-
-
-
 
     def get_notion_pages(self, page_ids):
         """
