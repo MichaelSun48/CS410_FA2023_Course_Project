@@ -8,15 +8,18 @@ class NotionSearch:
     def __init__(self, page_urls, notion_integration_secret, rich=False) -> None:
         self.page_urls_map = self._map_notion_url_id(page_urls)
         self.page_ids = self.page_urls_map.keys()
-        # self.inverted_index = IVIndex(
-        #     self.page_ids, notion_integration_secret, rich)
-        # self.page_id_lexicon = self.inverted_index.page_id_lexicon
-        # self.term_id_lexicon = self.inverted_index.term_id_lexicon
-        # self.page_lengths = self.inverted_index.page_lengths
+        print("building inverted index...")
+        self.inverted_index = IVIndex(
+            self.page_ids, notion_integration_secret, rich)
+        self.page_id_lexicon = self.inverted_index.page_id_lexicon
+        self.term_id_lexicon = self.inverted_index.term_id_lexicon
+        self.page_lengths = self.inverted_index.page_lengths
 
-        # self.avg_page_length = mean(self.page_lengths.values())
+        self.avg_page_length = mean(self.page_lengths.values())
 
-        # self.num_documents = len(self.page_id_lexicon)
+        self.num_documents = len(self.page_id_lexicon)
+
+        print("ready! \n")
 
     def _map_notion_url_id(self, page_urls):
         page_ids = {}
@@ -26,7 +29,6 @@ class NotionSearch:
             if matches:
                 # Assuming the first match is the page ID
                 page_ids[matches[0]] = url
-            print(url, matches)
         return page_ids
 
     def _print_page(self, page_id):
@@ -57,10 +59,32 @@ class NotionSearch:
 
         query_term_ids = [self.term_id_lexicon.get(
             token, None) for token in query_tokens]
+        
+        scored_query = self.query_page_scores(query_term_ids)
 
-        return self.rank_query(query_term_ids)
+        sorted_page_scores = sorted(scored_query.items(), key=lambda x: x[1], reverse=True)
 
-    def rank_query(self, query_term_ids):
+        return sorted_page_scores
+    
+    def cli_search(self,):
+        print(" _   _         _    _                 ____                            _     \n| \\ | |  ___  | |_ (_)  ___   _ __   / ___|   ___   __ _  _ __   ___ | |__  \n|  \\| | / _ \\ | __|| | / _ \\ | '_ \\  \\___ \\  / _ \\ / _` || '__| / __|| '_ \\ \n| |\\  || (_) || |_ | || (_) || | | |  ___) ||  __/| (_| || |   | (__ | | | |\n|_| \\_| \\___/  \\__||_| \\___/ |_| |_| |____/  \\___| \\__,_||_|    \\___||_| |_|\n                                                                            ")
+        while True:
+            print('\n\nEnter Query:')
+            query = input()
+            search_results = self.search(query)
+
+            print('\n\n Search Results:\n')
+
+            for index, (page_id, score) in enumerate(search_results):
+                page_url = self.page_urls_map[page_id]
+                print(f"{index + 1}. score: {score} url: {page_url} \n")
+
+
+            
+
+
+
+    def query_page_scores(self, query_term_ids):
         """
         Given dict of page_ids -> page blocks, and a tokenized query return the ranking of page_ids
 
