@@ -1,27 +1,20 @@
 import re
-import scripts.IVIndex as IVIndex
 import string
+from scripts.IVIndex import * 
 from statistics import mean
 
 
 class NotionSearch:
-    def __init__(self, page_ids, notion_integration_secret) -> None:
+    def __init__(self, page_ids, notion_integration_secret, rich=False) -> None:
         self.page_ids = page_ids
-        self.notion_pages = IVIndex.get_notion_pages(
-            page_ids, notion_integration_secret)
-        
-        self.tuples, self.term_id_lexicon, self.page_id_lexicon = IVIndex.construct_inverse_index_tuples(
-            self.notion_pages)
-        
-        self.inverted_index = IVIndex.get_inverted_index(self.tuples)
-
-        self.page_lengths = IVIndex.get_page_lengths(self.notion_pages)
+        self.inverted_index = IVIndex(page_ids, notion_integration_secret, rich)
+        self.page_id_lexicon = self.inverted_index.page_id_lexicon 
+        self.term_id_lexicon = self.inverted_index.term_id_lexicon 
+        self.page_lengths = self.inverted_index.page_lengths
 
         self.avg_page_length = mean(self.page_lengths.values())
 
         self.num_documents = len(self.page_id_lexicon)
-
-        pass
 
     def _print_page(self, page_id):
         words = []
@@ -46,7 +39,7 @@ class NotionSearch:
         raw_words = re.findall(r'\b\w+\b', query)
 
         for word in raw_words:
-            token = IVIndex.tokenize_word(word)
+            token = self.inverted_index.tokenize_word(word)
             query_tokens.append(token)
 
         query_term_ids = [self.term_id_lexicon.get(
@@ -75,17 +68,12 @@ class NotionSearch:
                 if token_id: # None means that token doesn't exist in corpus
                     page_id_int = self.page_id_lexicon[page_id]
 
-
-
                     tf = self.inverted_index[token_id].get(page_id_int,0)
-
-                    
 
 
                     n_t = len(self.inverted_index[token_id])
 
-                    page_score += IVIndex.BM25(tf, self.avg_page_length,
-                                self.page_lengths[page_id], n_t, self.num_documents, k1=1.2, b=0.75)
+                    page_score += self.inverted_index.BM25_IDF_score(tf, self.avg_page_length, self.page_lengths[page_id], n_t, self.num_documents, k1=1.2, b=0.75)
 
             page_scores[page_id] = page_score
 
