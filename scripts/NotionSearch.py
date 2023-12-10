@@ -19,8 +19,6 @@ class NotionSearch:
 
         self.num_documents = len(self.page_id_lexicon)
 
-        print("ready! \n")
-
     def _map_notion_url_id(self, page_urls):
         page_ids = {}
         for url in page_urls:
@@ -78,11 +76,6 @@ class NotionSearch:
             for index, (page_id, score) in enumerate(search_results):
                 page_url = self.page_urls_map[page_id]
                 print(f"{index + 1}. score: {score} url: {page_url} \n")
-
-
-            
-
-
 
     def query_page_scores(self, query_term_ids):
         """
