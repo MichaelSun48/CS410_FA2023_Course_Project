@@ -19,8 +19,6 @@ class NotionSearch:
 
         self.num_documents = len(self.page_id_lexicon)
 
-        print("ready! \n")
-
     def _map_notion_url_id(self, page_urls):
         page_ids = {}
         for url in page_urls:
@@ -59,13 +57,14 @@ class NotionSearch:
 
         query_term_ids = [self.term_id_lexicon.get(
             token, None) for token in query_tokens]
-        
+
         scored_query = self.query_page_scores(query_term_ids)
 
-        sorted_page_scores = sorted(scored_query.items(), key=lambda x: x[1], reverse=True)
+        sorted_page_scores = sorted(
+            scored_query.items(), key=lambda x: x[1], reverse=True)
 
         return sorted_page_scores
-    
+
     def cli_search(self,):
         print(" _   _         _    _                 ____                            _     \n| \\ | |  ___  | |_ (_)  ___   _ __   / ___|   ___   __ _  _ __   ___ | |__  \n|  \\| | / _ \\ | __|| | / _ \\ | '_ \\  \\___ \\  / _ \\ / _` || '__| / __|| '_ \\ \n| |\\  || (_) || |_ | || (_) || | | |  ___) ||  __/| (_| || |   | (__ | | | |\n|_| \\_| \\___/  \\__||_| \\___/ |_| |_| |____/  \\___| \\__,_||_|    \\___||_| |_|\n                                                                            ")
         while True:
@@ -78,11 +77,6 @@ class NotionSearch:
             for index, (page_id, score) in enumerate(search_results):
                 page_url = self.page_urls_map[page_id]
                 print(f"{index + 1}. score: {score} url: {page_url} \n")
-
-
-            
-
-
 
     def query_page_scores(self, query_term_ids):
         """

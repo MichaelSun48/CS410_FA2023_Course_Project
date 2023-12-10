@@ -5,39 +5,62 @@ import re
 import math
 import sys
 
-class IVIndex: 
+
+class IVIndex:
     def __init__(self, page_ids, notion_secret, rich=False) -> None:
         self.page_ids = page_ids
         self.notion_secret = notion_secret
         self.notion_pages = self.get_notion_pages(page_ids)
 
-        self.global_terms = []  # global terms 
-        self.page_lengths = {} # page_id : page_length
-        self.page_id_lexicon = self.construct_page_id_lexicon() 
+        self.global_terms = []  # global terms
+        self.page_lengths = {}  # page_id : page_length
+        self.page_id_lexicon = self.construct_page_id_lexicon()
+        self.type_weighting_map = {
+            'heading_1': 3.0, 'heading_2': 2.0, 'heading_3': 1.5, 'callout': 1.5}
+        self.annotation_weigthing_map = {
+            'bold': 1.2, 'italic': 1.1, 'underline': 1.1, 'strikethrough': .5, 'code': 1.0}
         self.inverted_index = {}
-        self.term_id_lexicon = {} 
+        self.term_id_lexicon = {}
 
         term_lex_counter = 0
         for notion_page_id, page_blocks in self.notion_pages.items():
             page_terms = self.retrieve_page_terms(page_blocks, rich, [])
             term_freqs = self.term_frequencies(page_terms)
             self.global_terms += page_terms
-            for term in page_terms:
-                if term in self.term_id_lexicon: # Term already in global lexicon, retreieve term id 
-                    term_id = self.term_id_lexicon[term]
-                else: # Assign new term_id to new term, save in term lexicon 
-                    self.term_id_lexicon[term] = term_lex_counter
-                    term_id = term_lex_counter
-                    term_lex_counter += 1
-                lex_page_id = self.page_id_lexicon[notion_page_id]
-                if term_id in self.inverted_index: # Term_id already in inverted index, add page and term freq
-                    self.inverted_index[term_id][lex_page_id] = term_freqs[term]
-                else: # New term in inverted index, add page and term freq
-                    term_pages = {lex_page_id: term_freqs[term]}
-                    self.inverted_index[term_id] = term_pages
+
+            if rich:
+                for term, _ in page_terms:
+
+                    if term in self.term_id_lexicon:  # Term already in global lexicon, retreieve term id
+                        term_id = self.term_id_lexicon[term]
+                    else:  # Assign new term_id to new term, save in term lexicon
+                        self.term_id_lexicon[term] = term_lex_counter
+                        term_id = term_lex_counter
+                        term_lex_counter += 1
+                    lex_page_id = self.page_id_lexicon[notion_page_id]
+
+                    if term_id in self.inverted_index:  # Term_id already in inverted index, add page and term freq
+                        self.inverted_index[term_id][lex_page_id] = term_freqs[term]
+                    else:  # New term in inverted index, add page and term freq
+                        term_pages = {lex_page_id: term_freqs[term]}
+                        self.inverted_index[term_id] = term_pages
+            else:
+                for term in page_terms:
+                    if term in self.term_id_lexicon:  # Term already in global lexicon, retreieve term id
+                        term_id = self.term_id_lexicon[term]
+                    else:  # Assign new term_id to new term, save in term lexicon
+                        self.term_id_lexicon[term] = term_lex_counter
+                        term_id = term_lex_counter
+                        term_lex_counter += 1
+                    lex_page_id = self.page_id_lexicon[notion_page_id]
+                    if term_id in self.inverted_index:  # Term_id already in inverted index, add page and term freq
+                        self.inverted_index[term_id][lex_page_id] = term_freqs[term]
+                    else:  # New term in inverted index, add page and term freq
+                        term_pages = {lex_page_id: term_freqs[term]}
+                        self.inverted_index[term_id] = term_pages
             self.page_lengths[notion_page_id] = len(page_terms)
         pass
-            
+
     def __getitem__(self, term_id):
         return self.inverted_index[term_id]
 
@@ -77,8 +100,9 @@ class IVIndex:
         Returns:
             - token: the tokenized word 
         """
-        token = word.strip().lower().translate(str.maketrans('', '', string.punctuation + '“”'))
-        return token 
+        token = word.strip().lower().translate(
+            str.maketrans('', '', string.punctuation + '“”'))
+        return token
 
     # rich parameter indicates whether to capture annotation and notion block type data
     def retrieve_page_terms(self, blocks, rich=False, terms=[]):
@@ -108,12 +132,11 @@ class IVIndex:
                         annotations = set(map(lambda x: x[0], filter(lambda x: (
                             x[0] != 'color') and x[1], text["annotations"].items())))
 
-                        # type is the notion block type. e.g. text, heading1, callout, etc.
-                        type = text['type']
                         for word in raw_words:
                             token = self.tokenize_word(word)
                             if token:
-                                terms.append(((token, (type, annotations))))
+                                terms.append(
+                                    (token, (block_type, annotations)))
                     else:
                         for word in raw_words:
                             token = self.tokenize_word(word)
@@ -126,11 +149,10 @@ class IVIndex:
                 self.retrieve_page_terms(child_blocks, rich, terms)
         return terms
 
-
     def BM25_IDF_score(self, tf, avgdl, dl, n_t, N, k1, b):
         """
         Returns BM25 score for a term, and a Document
-        
+
         Parameters:
             - tf: term frequency
             - avgdl: average document length
@@ -143,12 +165,12 @@ class IVIndex:
             - doc_score: bm25 score for a particular document
         """
 
-        term_frequency_component = tf * (k1 + 1) 
-        IDF_component = math.log(((N - n_t + 0.5)/ (n_t + 0.5)) + 1)
-        normalization_component = tf + k1 * (1 - b + (b *(dl/avgdl)))
+        term_frequency_component = tf * (k1 + 1)
+        IDF_component = math.log(((N - n_t + 0.5) / (n_t + 0.5)) + 1)
+        normalization_component = tf + k1 * (1 - b + (b * (dl/avgdl)))
 
         return IDF_component * (term_frequency_component / normalization_component)
-    
+
     def construct_page_id_lexicon(self):
         """
         Constructs the page_id lexicon that maps a notion page id to an integer id 
@@ -173,12 +195,19 @@ class IVIndex:
         """
         i = 0
         lexicon = {}
-        for term in terms:
-            if not term in lexicon:
-                lexicon[term] = i
-                i += 1
+        print(term)
+        if isinstance(term, str):
+            for term in terms:
+                if not term in lexicon:
+                    lexicon[term] = i
+                    i += 1
+        else:
+            for term, data in terms:
+                if not term in lexicon:
+                    lexicon[term] = i
+                    i += 1
         return lexicon
-    
+
     def term_frequencies(self, terms):
         """
         Returns the frequency of each term in list of terms
@@ -190,8 +219,21 @@ class IVIndex:
 
         """
         freqs = defaultdict(int)
-        for term in terms:
-            freqs[term] += 1
+        if isinstance(terms[0], str):  # not rich
+            for term in terms:
+                freqs[term] += 1
+        else:
+            for term, (block_type, annotations) in terms:
+                term_weight = 1
+
+                term_weight *= self.type_weighting_map.get(block_type, 1.0)
+
+                for annotation in annotations:
+                    term_weight *= self.annotation_weigthing_map.get(
+                        annotation, 1.0)
+
+                freqs[term] += term_weight
+
         return freqs
 
     def get_notion_pages(self, page_ids):
