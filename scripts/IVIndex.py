@@ -109,16 +109,22 @@ class IVIndex:
         payload = {}
 
         response = requests.get(url, headers=headers, json=payload)
-
         if response.status_code == 200:
             json = response.json()
             url = json['url']
-            title = json['properties']['Name']['title'][0]['plain_text']
+            try:
+
+                title = json['properties']['Name']['title'][0]['plain_text']
+            except Exception as e:
+                print('can\'t get title')
+                return url, ""
             return url, title
         else:
             print(f"Error: {response.status_code}")
             print(response.text)
             return None
+
+        return None
 
     def tokenize_word(self, word):
         """
