@@ -3,7 +3,6 @@ import string
 from collections import defaultdict
 import re
 import math
-import sys
 
 
 class IVIndex:
