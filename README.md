@@ -8,7 +8,7 @@
 ## Introduction 
 For our CS410 course project, we present a different approach to Notion Search. Notion is a innovative all-in one productivity tool that includes a rich-text note taking feature. Both of us  use Notion as our primary note taking tool, and while we enjoy the features and rich text capabilities, both of us thought that Notion's serach functionality was lacking. 
 
-That is why we decided to apply what we learned in CS410 to Notion by creating a different appraoch to Notion search. Our version is built from scratch using only built-in python libraries and implements the OkapiBM25 scoring function discussed in class, but we have also leveraged Notion's rich text capabilties to incorporate Notion-sepcific heuristics into our scoring function. This means that we can, say, weight **bolded** text more, or weight ~~strikethrough~~ text less, and much more 
+That is why we decided to apply what we learned in CS410 to Notion by creating a different appraoch to Notion search. Our application is built from scratch using only built-in python libraries and implements the OkapiBM25 scoring function discussed in class, but we have also leveraged Notion's rich text capabilties to incorporate Notion-specific heuristics into our scoring function. This means that we can, say, weight **bolded** text more, or weight ~~strikethrough~~ text less, and much more.
 
 ## Installation and Setup 
 
