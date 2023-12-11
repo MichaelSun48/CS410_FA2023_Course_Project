@@ -6,6 +6,15 @@ from statistics import mean
 
 class NotionSearch:
     def __init__(self, page_urls, notion_integration_secret, rich=False) -> None:
+        """
+        Given List of page_urls, allows users to search using text queries
+
+        Parameters:
+            - page_urls: list of notion page urls
+            - notion_integration_secret: a string representing the notion id of a notion page 
+            - rich: whether to build the inverted index using rich test hueristics
+
+        """
         self.page_urls_map = self._map_notion_url_id(page_urls)
         self.page_ids = self.page_urls_map.keys()
         print("building inverted index...")
@@ -21,6 +30,14 @@ class NotionSearch:
         self.num_documents = len(self.page_id_lexicon)
 
     def _map_notion_url_id(self, page_urls):
+        """
+        Given List of page_urls, returns the page ids
+
+        Parameters:
+            - page_urls: list of notion page urls
+        Returns:
+            - page_ids: list of page ids
+        """
         page_ids = {}
         for url in page_urls:
             # Find all matches of a 32-digit hexadecimal string
@@ -31,6 +48,14 @@ class NotionSearch:
         return page_ids
 
     def _print_page(self, page_id):
+        """
+        prints out full page text data
+
+        Parameters:
+            - page_id: notion page id
+        Returns:
+            - None
+        """
         words = []
 
         for block in self.notion_pages[page_id]:
@@ -48,6 +73,14 @@ class NotionSearch:
         return words
 
     def search(self, query: str):
+        """
+        Preforms search on notion pages given text query
+
+        Parameters:
+            - query: text query
+        Returns:
+            - sorted_page_score: scores of all pages in Corpus ranked by highest
+        """
         query_tokens = []
         # raw_words = filter(lambda x: len(x) > 0, query.split(' '))
         raw_words = re.findall(r'\b\w+\b', query)
@@ -67,6 +100,10 @@ class NotionSearch:
         return sorted_page_scores
 
     def cli_search(self,):
+        """
+        Starts a CLI allowing users to continously search a collection of documents
+
+        """
         print(" _   _         _    _                 ____                            _     \n| \\ | |  ___  | |_ (_)  ___   _ __   / ___|   ___   __ _  _ __   ___ | |__  \n|  \\| | / _ \\ | __|| | / _ \\ | '_ \\  \\___ \\  / _ \\ / _` || '__| / __|| '_ \\ \n| |\\  || (_) || |_ | || (_) || | | |  ___) ||  __/| (_| || |   | (__ | | | |\n|_| \\_| \\___/  \\__||_| \\___/ |_| |_| |____/  \\___| \\__,_||_|    \\___||_| |_|\n                                                                            ")
         while True:
             print('\n\nEnter Query:')
@@ -76,7 +113,8 @@ class NotionSearch:
             print('\n\n Search Results:\n')
 
             for index, (page_id, score) in enumerate(search_results):
-                print(f"{index + 1}. score: {score} url: {self.pageId_url_map[page_id]} \n")
+                print(
+                    f"{index + 1}. score: {score} url: {self.pageId_url_map[page_id]} \n")
 
     def query_page_scores(self, query_term_ids):
         """

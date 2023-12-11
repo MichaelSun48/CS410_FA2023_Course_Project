@@ -8,6 +8,17 @@ import sys
 
 class IVIndex:
     def __init__(self, page_ids, notion_secret, rich=False) -> None:
+        """
+        Creates Inverted Index of words and page ids, inverted index value is frequency by default, with rich= True it is multiplied by the text type's weight
+
+        Parameters:
+            - page_ids: list of page_ids
+            - notion_secret: a string representing the notion id of a notion page 
+            - rich: whether to build the inverted index using rich test hueristics
+
+        Returns:
+            - blocks: a list of json "blocks" that captures all text information in the page 
+        """
         self.page_ids = page_ids
         self.notion_secret = notion_secret
         self.notion_pages = self.get_notion_pages(page_ids)
@@ -16,10 +27,11 @@ class IVIndex:
         self.page_id_lexicon = self.construct_page_id_lexicon()
         self.annotation_weigthing_map = {
             'heading_1': 3.0, 'heading_2': 2.0, 'heading_3': 1.5, 'callout': 1.5,
-            'title': 1.5, 'bold': 1.2, 'italic': 1.1, 'underline': 1.1, 'strikethrough': .5, 'code': 1.0}
+            'title': 1.5, 'bold': 1.2, 'italic': 1.1, 'underline': 1.1, 'strikethrough': .5, 'code': 1.0}  # how much more important each type of word, relative to plain text
+
         self.inverted_index = {}
         self.term_id_lexicon = {}
-        self.pageId_url_map = {} 
+        self.pageId_url_map = {}
 
         term_lex_counter = 0
         for notion_page_id, page_blocks in self.notion_pages.items():
@@ -99,7 +111,7 @@ class IVIndex:
             print(response.text)
             return None
 
-    def retrieve_notion_url_title(self, page_id): 
+    def retrieve_notion_url_title(self, page_id):
         url = f'https://api.notion.com/v1/pages/{page_id}/'
         headers = {
             'Authorization': f'Bearer {self.notion_secret}',
@@ -139,8 +151,8 @@ class IVIndex:
             str.maketrans('', '', string.punctuation + '“”'))
         return token
 
-
     # rich parameter indicates whether to capture annotation and notion block type data
+
     def retrieve_page_terms(self, blocks, rich=False, terms=[]):
         """
         Recursively retrieves all terms in a list of notion blocks, including nested blocks 
@@ -167,7 +179,8 @@ class IVIndex:
                         # bold, italic, strikethrough, underlined, code
                         annotations = set(map(lambda x: x[0], filter(lambda x: (
                             x[0] != 'color') and x[1], text["annotations"].items())))
-                        annotations.add(block_type) # Make block type just an annotation instead of a separate property for efficiency 
+                        # Make block type just an annotation instead of a separate property for efficiency
+                        annotations.add(block_type)
 
                         for word in raw_words:
                             token = self.tokenize_word(word)
@@ -247,7 +260,7 @@ class IVIndex:
 
     def term_frequencies(self, terms):
         """
-        Returns the frequency of each term in list of terms
+        Returns the frequency of each term in list of terms, if terms contain rich text, multiply frequency of word type by its weight
 
         Parameters:
             - terms: a list of terms 
@@ -262,7 +275,6 @@ class IVIndex:
         else:
             for term, annotations in terms:
                 term_weight = 1
-
 
                 for annotation in annotations:
                     term_weight *= self.annotation_weigthing_map.get(
