@@ -14,6 +14,7 @@ class NotionSearch:
         self.page_id_lexicon = self.inverted_index.page_id_lexicon
         self.term_id_lexicon = self.inverted_index.term_id_lexicon
         self.page_lengths = self.inverted_index.page_lengths
+        self.pageId_url_map = self.inverted_index.pageId_url_map
 
         self.avg_page_length = mean(self.page_lengths.values())
 
@@ -75,8 +76,7 @@ class NotionSearch:
             print('\n\n Search Results:\n')
 
             for index, (page_id, score) in enumerate(search_results):
-                page_url = self.page_urls_map[page_id]
-                print(f"{index + 1}. score: {score} url: {page_url} \n")
+                print(f"{index + 1}. score: {score} url: {self.pageId_url_map[page_id]} \n")
 
     def query_page_scores(self, query_term_ids):
         """

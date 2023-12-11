@@ -12,26 +12,34 @@ class IVIndex:
         self.notion_secret = notion_secret
         self.notion_pages = self.get_notion_pages(page_ids)
 
-        self.global_terms = []  # global terms
         self.page_lengths = {}  # page_id : page_length
         self.page_id_lexicon = self.construct_page_id_lexicon()
-        self.type_weighting_map = {
-            'heading_1': 3.0, 'heading_2': 2.0, 'heading_3': 1.5, 'callout': 1.5}
         self.annotation_weigthing_map = {
-            'bold': 1.2, 'italic': 1.1, 'underline': 1.1, 'strikethrough': .5, 'code': 1.0}
+            'heading_1': 3.0, 'heading_2': 2.0, 'heading_3': 1.5, 'callout': 1.5,
+            'title': 1.5, 'bold': 1.2, 'italic': 1.1, 'underline': 1.1, 'strikethrough': .5, 'code': 1.0}
         self.inverted_index = {}
         self.term_id_lexicon = {}
+        self.pageId_url_map = {} 
 
         term_lex_counter = 0
         for notion_page_id, page_blocks in self.notion_pages.items():
             page_terms = self.retrieve_page_terms(page_blocks, rich, [])
+            url, title = self.retrieve_notion_url_title(notion_page_id)
+            self.pageId_url_map[notion_page_id] = url
+
+            for word in title.split(' '):
+                token = self.tokenize_word(word)
+                if rich:
+                    page_terms.append((token, {'title'}))
+                else:
+                    page_terms.append(token)
+
             term_freqs = self.term_frequencies(page_terms)
-            self.global_terms += page_terms
 
             if rich:
                 for term, _ in page_terms:
 
-                    if term in self.term_id_lexicon:  # Term already in global lexicon, retreieve term id
+                    if term in self.term_id_lexicon:  # Term already in global lexicon, retrieve term id
                         term_id = self.term_id_lexicon[term]
                     else:  # Assign new term_id to new term, save in term lexicon
                         self.term_id_lexicon[term] = term_lex_counter
@@ -91,6 +99,27 @@ class IVIndex:
             print(response.text)
             return None
 
+    def retrieve_notion_url_title(self, page_id): 
+        url = f'https://api.notion.com/v1/pages/{page_id}/'
+        headers = {
+            'Authorization': f'Bearer {self.notion_secret}',
+            'Content-Type': 'application/json',
+            'Notion-Version': '2022-06-28',
+        }
+        payload = {}
+
+        response = requests.get(url, headers=headers, json=payload)
+
+        if response.status_code == 200:
+            json = response.json()
+            url = json['url']
+            title = json['properties']['Name']['title'][0]['plain_text']
+            return url, title
+        else:
+            print(f"Error: {response.status_code}")
+            print(response.text)
+            return None
+
     def tokenize_word(self, word):
         """
         Tokenizes a word by removing spaces, making lower case, and removing punctuation 
@@ -103,6 +132,7 @@ class IVIndex:
         token = word.strip().lower().translate(
             str.maketrans('', '', string.punctuation + '“”'))
         return token
+
 
     # rich parameter indicates whether to capture annotation and notion block type data
     def retrieve_page_terms(self, blocks, rich=False, terms=[]):
@@ -131,12 +161,13 @@ class IVIndex:
                         # bold, italic, strikethrough, underlined, code
                         annotations = set(map(lambda x: x[0], filter(lambda x: (
                             x[0] != 'color') and x[1], text["annotations"].items())))
+                        annotations.add(block_type) # Make block type just an annotation instead of a separate property for efficiency 
 
                         for word in raw_words:
                             token = self.tokenize_word(word)
                             if token:
                                 terms.append(
-                                    (token, (block_type, annotations)))
+                                    (token, annotations))
                     else:
                         for word in raw_words:
                             token = self.tokenize_word(word)
@@ -223,10 +254,9 @@ class IVIndex:
             for term in terms:
                 freqs[term] += 1
         else:
-            for term, (block_type, annotations) in terms:
+            for term, annotations in terms:
                 term_weight = 1
 
-                term_weight *= self.type_weighting_map.get(block_type, 1.0)
 
                 for annotation in annotations:
                     term_weight *= self.annotation_weigthing_map.get(
